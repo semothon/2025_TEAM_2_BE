@@ -28,3 +28,4 @@ app.use(express.json());
 
 app.use('/auth',require('./routes/auth.js'))
 app.use('/user',require('./routes/user.js'))
+app.use('/group',require('./routes/group.js'))
