@@ -20,6 +20,10 @@ connectDB.then((client)=>{
   console.log(err)
 })
 
+app.get('/',(req,res)=>{
+  res.send("서버 잘 돌아가는중")
+})
+
 app.use(express.json());
 
 app.use('/auth',require('./routes/auth.js'))
