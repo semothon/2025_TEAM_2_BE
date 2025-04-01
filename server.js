@@ -22,3 +22,4 @@ connectDB.then((client)=>{
 
 app.use(express.json());
 
+app.use('/auth',require('./routes/auth.js'))
