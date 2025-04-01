@@ -15,6 +15,34 @@ connectDB.then((client)=>{
   console.log(err)
 }) 
 
+// DB에 존재하는 그룹 목록 GET
+router.get('/get', async (req, res) => {
+    try {
+      const groups = await db.collection('groups').find({ }).toArray();
+      return res.status(200).json({
+        message: '그룹 목록을 성공적으로 가져왔습니다.',
+        groups: groups.map(group => ({
+          groupId: group._id,
+          title: group.title,
+          note: group.note,
+          foodCategory: group.foodCategory,
+          maxPeople: group.maxPeople,
+          together: group.together,
+          sameGender: group.sameGender,
+          hashtags: group.hashtags,
+          location: group.location,
+          members: group.members,
+          status: group.status,
+          creator: group.creator
+          
+    
+        })),
+      });
+    } catch (error) {
+      console.error('그룹 목록 조회 오류:', error);
+      res.status(500).json({ message: '서버 오류 발생' });
+    }
+  });
 // 그룹 개설 API
 router.post('/create', async (req, res) => {
     const token = req.headers['authorization'];

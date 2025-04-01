@@ -15,7 +15,7 @@ connectDB.then((client)=>{
 }) 
 
 //회원 정보 조회 API
-router.get('/get', async (req, res) => {
+router.get('/info', async (req, res) => {
 
 
   const token = req.headers['authorization'];
