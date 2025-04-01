@@ -104,5 +104,76 @@ router.post('/univ-cert-request', async (req, res) => {
    }
 });
 
+ // 회원가입 API
+router.post('/register', async (req, res) => {
+   const {
+     username,
+     password,
+     studentId,
+     major,
+     gender,
+     nickname,
+     icon,
+     email,
+   } = req.body;
+ 
+   // 필수 정보 체크
+   if (
+     !username ||
+     !password ||
+     !studentId ||
+     !major ||
+     !gender ||
+     !nickname ||
+     !icon ||
+     !email 
+   ) {
+     return res.status(400).json({ message: '모든 필드를 입력해주세요.' });
+   }
+ 
+   try {
+     // 비밀번호 해싱
+     const saltRounds = 10;
+     const hashedPassword = await bcrypt.hash(password, saltRounds);
+ 
+      
+     const user = await db.collection('users').findOne({ email });
+
+     if (!user) {
+       return res.status(400).json({ message: '사용자가 존재하지 않습니다.' });
+     }
+ 
+     // 학교 인증이 완료된 후 새로운 사용자 데이터 업데이트
+     const result = await db.collection('users').updateOne(
+       { _id: user._id },  // 이메일로 찾은 사용자 업데이트
+       {
+         $set: {
+           username,
+           password: hashedPassword,
+           school: [user.school[0], parseInt(studentId, 10), major, true],  // 학교 이름, 학번, 전공, 인증 상태
+           gender,
+           nickname,
+           icon,
+           created_at: new Date(),  // 가입 시간
+         },
+       }
+     );
+ 
+     if (result.matchedCount === 0) {
+       return res.status(400).json({ message: '사용자를 찾을 수 없습니다.' });
+     }
+ 
+    
+    // 성공적으로 데이터가 업데이트되면 로그인 진행
+    return res.status(200).json({
+      message: '회원가입이 완료되었습니다.',
+    });
+  } catch (error) {
+    console.error('회원가입 오류:', error);
+    res.status(500).json({ message: '서버 오류 발생' });
+  }
+ });
+
+ 
 
 module.exports = router 
