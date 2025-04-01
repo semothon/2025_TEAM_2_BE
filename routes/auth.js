@@ -173,6 +173,52 @@ router.post('/register', async (req, res) => {
     res.status(500).json({ message: '서버 오류 발생' });
   }
  });
+ 
+// 로그인 API
+router.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+
+  // 필수 정보 체크
+  if (!email || !password) {
+    return res.status(400).json({ message: '아이디와 비밀번호를 입력해주세요.' });
+  }
+
+  try {
+    // 사용자 정보 확인
+    const user = await db.collection('users').findOne({ email });
+
+    if (!user) {
+      return res.status(401).json({ message: '아이디 또는 비밀번호가 잘못되었습니다.' });
+    }
+
+    // 비밀번호 비교 (bcrypt로 해싱된 비밀번호와 비교)
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: '아이디 또는 비밀번호가 잘못되었습니다.' });
+    }
+
+    // JWT 토큰 발급
+    const token = jwt.sign({ userId: user._id, email: user.email }, process.env.JWT_SECRET, {
+      expiresIn: '1h', // 1시간 동안 유효
+    });
+
+    // 로그인 성공 후 JWT 토큰을 클라이언트에 반환
+    return res.status(200).json({
+      message: '로그인 성공',
+      token,
+      userId: user._id,
+    });
+  } catch (error) {
+    console.error('로그인 오류:', error);
+    res.status(500).json({ message: '서버 오류' });
+  }
+});
+
+router.post('/logout', (req, res) => {
+  // 클라이언트에게 로그아웃 처리 안내
+  return res.status(200).json({ message: '로그아웃 되었습니다.' });
+});
 
  
 
