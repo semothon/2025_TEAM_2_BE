@@ -43,6 +43,7 @@ router.get('/get', async (req, res) => {
       res.status(500).json({ message: '서버 오류 발생' });
     }
   });
+
 // 그룹 개설 API
 router.post('/create', async (req, res) => {
     const token = req.headers['authorization'];
@@ -69,8 +70,8 @@ router.post('/create', async (req, res) => {
 
         // 첫 번째 멤버는 방 생성자
         const members = [userId]; 
-        // 방 상태는 초기에 개설자 한명뿐이니까 true로 둠
-        const status = true;
+        // 방 상태는 초기에 모집가능 인덱스인 0으로 설정
+        const status = 0;
         
         
         const newGroup = {
@@ -83,7 +84,7 @@ router.post('/create', async (req, res) => {
             hashtags: finalHashtags,  
             members,  
             location,
-            status, // 방 현재 상태 => maxPeople 수가 되면 false로 변경해서 더이상 못들어오게함
+            status, // 방 현재 상태 => 방장이 1로 설정하면 더이상 멤버 모집 안함, 2는 거래 완료 용도로 사용
             creator: new ObjectId(userId), // 그룹 생성자의 userId 저장
             createdAt: new Date(),
         };
@@ -112,14 +113,14 @@ router.patch('/update', async (req, res) => {
       return res.status(401).json({ message: '인증 토큰이 제공되지 않았습니다.' });
     }
   
-    const { groupId, title, note, foodCategory, maxPeople, sameGender, location, hashtags, together } = req.body;
+    const { groupId, title, note, foodCategory, maxPeople, sameGender, location, hashtags, together , status} = req.body;
   
     if (!groupId) {
       return res.status(400).json({ message: '그룹 ID가 제공되지 않았습니다.' });
     }
   
     // 최소 하나의 수정 필드가 있어야 함
-    if (!title && !note && !foodCategory && !maxPeople && sameGender === undefined && !location && !hashtags && together === undefined) {
+    if (!title && !note && !foodCategory && !maxPeople && sameGender === undefined && !location && !hashtags && together === undefined && status === undefined) {
       return res.status(400).json({ message: '수정할 필드를 최소 하나는 입력해주세요.' });
     }
   
@@ -147,6 +148,7 @@ router.patch('/update', async (req, res) => {
       if (foodCategory) updateFields.foodCategory = foodCategory;
       if (maxPeople) updateFields.maxPeople = maxPeople;
       if (location) updateFields.location = location;
+      if (status !== undefined) updateFields.status = status;
       if (together !== undefined) updateFields.together = together;
       if (sameGender !== undefined) updateFields.sameGender = sameGender;
       //   if (hashtags) updateFields.hashtags = hashtags; 
@@ -212,8 +214,12 @@ router.delete('/delete', async (req, res) => {
     }
   });
 
-
 // 그룹 참가 API
+// 그룹 status 안내
+// 그룹 상태 업데이트: status: 0, status: 1, status: 2의 세 가지 상태로 그룹 상태를 관리합니다.
+// status: 0: 모임 진행 중, 참여 가능.
+// status: 1: 모임 진행 중, 참여 불가 (maxPeople에 도달하거나 방장이 참여를 막은 경우).
+// status: 2: 모임 종료된 그룹.
 router.post('/join', async (req, res) => {
     const token = req.headers['authorization'];  
     const { groupId } = req.body;  
@@ -225,24 +231,29 @@ router.post('/join', async (req, res) => {
     try {
       
       const decoded = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
-      const userId = decoded.userId;
+      const userId = decoded.userId; 
 
-      
+     
       const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
 
       if (!user) {
         return res.status(404).json({ message: '해당 사용자 정보를 찾을 수 없습니다.' });
       }
 
-      
+     
       const group = await db.collection('groups').findOne({ _id: new ObjectId(groupId) });
 
       if (!group) {
         return res.status(404).json({ message: '그룹을 찾을 수 없습니다.' });
       }
 
-      
-      if (group.status === false) {
+      // 그룹 상태가 2 (종료)일 때는 참여 불가
+      if (group.status === 2) {
+        return res.status(409).json({ message: '그룹은 이미 종료된 상태입니다.' });
+      }
+
+      // 그룹 상태가 1일 때는 더 이상 참여 불가
+      if (group.status === 1) {
         return res.status(409).json({ message: '그룹이 가득 차서 더 이상 참여할 수 없습니다.' });
       }
 
@@ -260,27 +271,23 @@ router.post('/join', async (req, res) => {
         }
       }
 
-      
+      // 이미 maxPeople을 초과했으면 더 이상 참여 불가
       if (group.members.length >= group.maxPeople) {
-        await db.collection('groups').updateOne(
-          { _id: new ObjectId(groupId) },
-          { $set: { status: false } }  
-        );
         return res.status(409).json({ message: '그룹이 가득 차서 더 이상 참여할 수 없습니다.' });
       }
 
-      
+     
       await db.collection('groups').updateOne(
         { _id: new ObjectId(groupId) },
-        { $push: { members: userId } }  
+        { $push: { members: userId } } 
       );
 
-      // 참가 후 멤버 수가 maxPeople에 도달하면 상태를 false로 변경
+      // 참가 후 멤버 수가 maxPeople에 도달하면 상태를 1로 변경
       const updatedGroup = await db.collection('groups').findOne({ _id: new ObjectId(groupId) });
       if (updatedGroup.members.length >= updatedGroup.maxPeople) {
         await db.collection('groups').updateOne(
           { _id: new ObjectId(groupId) },
-          { $set: { status: false } }  
+          { $set: { status: 1 } }  
         );
       }
 
@@ -295,4 +302,6 @@ router.post('/join', async (req, res) => {
       res.status(500).json({ message: '서버 오류 발생' });
     }
 });
+
+
 module.exports = router 

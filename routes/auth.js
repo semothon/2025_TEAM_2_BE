@@ -184,7 +184,7 @@ router.post('/login', async (req, res) => {
   }
 
   try {
-    // 사용자 정보 확인
+    
     const user = await db.collection('users').findOne({ email });
 
     if (!user) {
@@ -200,10 +200,10 @@ router.post('/login', async (req, res) => {
 
     // JWT 토큰 발급
     const token = jwt.sign({ userId: user._id, email: user.email }, process.env.JWT_SECRET, {
-      expiresIn: '1h', // 1시간 동안 유효
+      expiresIn: '1d',
     });
 
-    // 로그인 성공 후 JWT 토큰을 클라이언트에 반환
+    
     return res.status(200).json({
       message: '로그인 성공',
       token,
