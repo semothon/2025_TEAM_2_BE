@@ -167,6 +167,7 @@ router.patch('/update', async (req, res) => {
 
 // 그룹 삭제 API
 router.delete('/delete', async (req, res) => {
+    
     const token = req.headers['authorization'];
   
     if (!token) {
