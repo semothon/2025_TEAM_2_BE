@@ -125,8 +125,8 @@ router.post('/register', async (req, res) => {
      !major ||
      !gender ||
      !nickname ||
-     !icon ||
-     !email 
+     !email ||
+     icon === undefined 
    ) {
      return res.status(400).json({ message: '모든 필드를 입력해주세요.' });
    }

@@ -91,10 +91,10 @@ router.post('/create', async (req, res) => {
 
         
         const result = await db.collection('groups').insertOne(newGroup);
-
+        io.to(result.insertedId.toString()).emit('newMember', { userId, message: `${decoded.nickname}님이 방을 생성하셨습니다.` });
         
         return res.status(201).json({
-            message: '그룹이 성공적으로 생성되었습니다.',
+            message: '그룹이 성공적으로 생성되었습니다. ${decoded.nickname}님이 방을 생성하셨습니다. ',
             groupId: result.insertedId,
         });
     } catch (error) {
@@ -229,58 +229,44 @@ router.post('/join', async (req, res) => {
     }
 
     try {
-      
       const decoded = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
       const userId = decoded.userId; 
-
      
       const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
-
       if (!user) {
         return res.status(404).json({ message: '해당 사용자 정보를 찾을 수 없습니다.' });
       }
 
-     
       const group = await db.collection('groups').findOne({ _id: new ObjectId(groupId) });
-
       if (!group) {
         return res.status(404).json({ message: '그룹을 찾을 수 없습니다.' });
       }
 
-      // 그룹 상태가 2 (종료)일 때는 참여 불가
-      if (group.status === 2) {
-        return res.status(409).json({ message: '그룹은 이미 종료된 상태입니다.' });
+    // 그룹 상태 확인
+    if (group.status === 2 || group.status === 1) {
+        return res.status(409).json({ message: '참여할 수 없는 그룹입니다.' });
       }
 
-      // 그룹 상태가 1일 때는 더 이상 참여 불가
-      if (group.status === 1) {
-        return res.status(409).json({ message: '그룹이 가득 차서 더 이상 참여할 수 없습니다.' });
-      }
-
-      // 같은 성별 조건이 true인 경우, 생성자 성별과 참가자의 성별을 비교
-      if (group.sameGender === true) {
+    // 같은 성별 조건이 true인 경우, 생성자 성별과 참가자의 성별을 비교
+    if (group.sameGender === true) {
         
         const creator = await db.collection('users').findOne({ _id: new ObjectId(group.creator) });
         if (!creator) {
           return res.status(404).json({ message: '그룹 생성자 정보를 찾을 수 없습니다.' });
         }
-
         
         if (user.gender !== creator.gender) {
           return res.status(400).json({ message: '성별이 일치하지 않아 그룹에 참여할 수 없습니다.' });
         }
       }
-
-      // 이미 maxPeople을 초과했으면 더 이상 참여 불가
-      if (group.members.length >= group.maxPeople) {
-        return res.status(409).json({ message: '그룹이 가득 차서 더 이상 참여할 수 없습니다.' });
-      }
-
      
       await db.collection('groups').updateOne(
         { _id: new ObjectId(groupId) },
         { $push: { members: userId } } 
       );
+
+      // 소켓을 사용해 해당 그룹의 방에 유저 추가
+      io.to(groupId).emit('newMember', { userId, message: `${user.username}님이 그룹에 참여했습니다.` });
 
       // 참가 후 멤버 수가 maxPeople에 도달하면 상태를 1로 변경
       const updatedGroup = await db.collection('groups').findOne({ _id: new ObjectId(groupId) });
@@ -290,12 +276,8 @@ router.post('/join', async (req, res) => {
           { $set: { status: 1 } }  
         );
       }
-
       
-      return res.status(200).json({
-        message: '성공적으로 그룹에 참여하였습니다.',
-        groupId: groupId,
-      });
+      return res.status(200).json({ message: '그룹에 참여하였습니다.' });
 
     } catch (error) {
       console.error('그룹 참여 오류:', error);

@@ -131,7 +131,7 @@ router.patch('/update', async (req, res) => {
     
     if (nickname) updateFields.nickname = nickname;
     if (username) updateFields.username = username;
-    if (icon) updateFields.icon = icon;
+    if (icon !== undefined) updateFields.icon = icon;
     if (studentId) updateFields["school.1"] = studentId; 
     if (major) updateFields["school.2"] = major;
 
