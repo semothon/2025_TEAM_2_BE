@@ -150,4 +150,106 @@ router.patch('/update', async (req, res) => {
   }
 });
 
+//좋아요 api
+router.post('/like/:targetUserId', async (req, res) => {
+  const token = req.headers['authorization'];
+  if (!token) {
+    return res.status(401).json({ message: '인증 토큰이 없습니다.' });
+  }
+
+  try {
+    const decoded = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
+    const userId = decoded.userId;
+    const targetUserId = req.params.targetUserId;
+
+    if (userId === targetUserId) {
+      return res.status(400).json({ message: '자기 자신을 좋아요할 수 없습니다.' });
+    }
+
+    if (!ObjectId.isValid(targetUserId)) {
+      return res.status(400).json({ message: '올바르지 않은 사용자 ID입니다.' });
+    }
+
+    const targetUser = await db.collection('users').findOne({ _id: new ObjectId(targetUserId) });
+    if (!targetUser) {
+      return res.status(404).json({ message: '대상 사용자를 찾을 수 없습니다.' });
+    }
+
+    const alreadyLiked = targetUser.liked_by?.includes(userId);
+
+    if (alreadyLiked) {
+      // 좋아요 취소
+      await db.collection('users').updateOne(
+        { _id: new ObjectId(targetUserId) },
+        {
+          $pull: { liked_by: userId },
+          $inc: { like_count: -1 },
+        }
+      );
+      return res.status(200).json({ message: '좋아요를 취소했습니다.' });
+    } else {
+      // 좋아요 추가
+      await db.collection('users').updateOne(
+        { _id: new ObjectId(targetUserId) },
+        {
+          $addToSet: { liked_by: userId },
+          $inc: { like_count: 1 },
+        }
+      );
+      return res.status(200).json({ message: '좋아요를 추가했습니다.' });
+    }
+  } catch (error) {
+    console.error('좋아요 처리 오류:', error);
+    res.status(500).json({ message: '서버 오류 발생' });
+  }
+});
+
+// 사용자 차단 / 차단 해제 API
+router.post('/block/:targetUserId', async (req, res) => {
+  const token = req.headers['authorization'];
+  if (!token) {
+    return res.status(401).json({ message: '인증 토큰이 없습니다.' });
+  }
+
+  try {
+    const decoded = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
+    const userId = decoded.userId;
+    const targetUserId = req.params.targetUserId;
+
+    if (userId === targetUserId) {
+      return res.status(400).json({ message: '자기 자신은 차단할 수 없습니다.' });
+    }
+
+    if (!ObjectId.isValid(targetUserId)) {
+      return res.status(400).json({ message: '올바르지 않은 사용자 ID입니다.' });
+    }
+
+    const me = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+    if (!me) {
+      return res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
+    }
+
+    const alreadyBlocked = me.block_list?.includes(targetUserId);
+
+    if (alreadyBlocked) {
+      // 차단 해제
+      await db.collection('users').updateOne(
+        { _id: new ObjectId(userId) },
+        { $pull: { block_list: targetUserId } }
+      );
+      return res.status(200).json({ message: '차단을 해제했습니다.' });
+    } else {
+      // 차단 추가
+      await db.collection('users').updateOne(
+        { _id: new ObjectId(userId) },
+        { $addToSet: { block_list: targetUserId } }
+      );
+      return res.status(200).json({ message: '사용자를 차단했습니다.' });
+    }
+  } catch (error) {
+    console.error('차단 처리 오류:', error);
+    res.status(500).json({ message: '서버 오류 발생' });
+  }
+});
+
 module.exports = router 
