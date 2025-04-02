@@ -15,30 +15,9 @@ connectDB.then((client)=>{
   console.log(err)
 }) 
 
-
-router.get('/',(req,res)=>{
-   res.send("흠 user 라우트 문제 ㄴㄴ")
-})
-router.post('/',(req,res)=>{
-   
-   console.log('흠 user 라우트 문제 ㄴㄴ')
-})
-
+//회원 정보 조회 API
 router.get('/get', async (req, res) => {
 
-  // const { email } = req.query; // 이메일로 테스트
-
-  // if (!email) {
-  //   return res.status(400).json({ message: '이메일이 제공되지 않았습니다.' });
-  // }
-
-  // try {
-  //   // 이메일로 해당 사용자 정보 조회
-  //   const user = await db.collection('users').findOne({ email });
-
-  //   if (!user) {
-  //     return res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
-  //   }
 
   const token = req.headers['authorization'];
 
@@ -47,15 +26,15 @@ router.get('/get', async (req, res) => {
   }
 
   try {
-    // JWT 토큰에서 사용자 정보 추출
+    
     const decoded = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
-    const userId = decoded.userId; // JWT에서 userId 추출
+    const userId = decoded.userId; 
 
-    // 해당 사용자 정보 조회
+    
     const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
   
 
-    // 사용자 정보를 반환
+    
     return res.status(200).json({
       message: '사용자 정보 조회 성공',
       user: {
@@ -76,7 +55,7 @@ router.get('/get', async (req, res) => {
   }
 });
 
-//계정 삭제 API (JWT ver)
+//회원 탈퇴 API
 router.delete('/delete', async (req, res) => {
     
     const token = req.headers['authorization'];
@@ -86,9 +65,9 @@ router.delete('/delete', async (req, res) => {
     }
   
     try {
-      // JWT 토큰에서 사용자 정보 추출
+      
       const decoded = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
-      const userId = decoded.userId; // JWT에서 userId 추출
+      const userId = decoded.userId; 
   
       const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
       
@@ -123,6 +102,50 @@ router.delete('/delete', async (req, res) => {
     }
   });
   
+//회원 정보 업데이트 API
+router.patch('/update', async (req, res) => {
+  const token = req.headers['authorization'];
 
+  if (!token) {
+    return res.status(401).json({ message: '인증 토큰이 제공되지 않았습니다.' });
+  }
+
+  try {
+    
+    const decoded = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
+    const userId = decoded.userId; 
+
+    const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+
+    if (!user) {
+      return res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
+    }
+
+    
+    const { nickname, username, icon, major, studentId } = req.body;
+
+    const updateFields = {};
+
+    
+    if (nickname) updateFields.nickname = nickname;
+    if (username) updateFields.username = username;
+    if (icon) updateFields.icon = icon;
+    if (studentId) updateFields["school.1"] = studentId; 
+    if (major) updateFields["school.2"] = major;
+
+    
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(userId) },
+      { $set: updateFields }
+    );
+
+    return res.status(200).json({
+      message: '사용자 정보가 성공적으로 업데이트되었습니다.',
+    });
+  } catch (error) {
+    console.error('정보 수정 오류:', error);
+    res.status(500).json({ message: '서버 오류 발생' });
+  }
+});
 
 module.exports = router 

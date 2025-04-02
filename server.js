@@ -3,6 +3,8 @@ const axios = require('axios');
 const jwt = require('jsonwebtoken'); 
 const bcrypt = require('bcrypt');
 const bodyParser = require('body-parser');
+const { ObjectId } = require('mongodb');
+
 require('dotenv').config();
 
 
@@ -31,3 +33,4 @@ app.use(bodyParser.json());
 
 app.use('/auth',require('./routes/auth.js'))
 app.use('/user',require('./routes/user.js'))
+app.use('/group',require('./routes/group.js'))
