@@ -102,5 +102,66 @@ router.post('/create', async (req, res) => {
     }
 });
 
+// 그룹 업데이트 API
+// hashtags 관련해서 토의해보고 수정하자 
+// 예시) hashtags = [ { "한식" : true}, { "일식" : false}, {"따로먹을래요" : true} ] 같은 형식으로 하는게 나을지 ,, 
+router.patch('/update', async (req, res) => {
+    const token = req.headers['authorization'];
+  
+    if (!token) {
+      return res.status(401).json({ message: '인증 토큰이 제공되지 않았습니다.' });
+    }
+  
+    const { groupId, title, note, foodCategory, maxPeople, sameGender, location, hashtags, together } = req.body;
+  
+    if (!groupId) {
+      return res.status(400).json({ message: '그룹 ID가 제공되지 않았습니다.' });
+    }
+  
+    // 최소 하나의 수정 필드가 있어야 함
+    if (!title && !note && !foodCategory && !maxPeople && sameGender === undefined && !location && !hashtags && together === undefined) {
+      return res.status(400).json({ message: '수정할 필드를 최소 하나는 입력해주세요.' });
+    }
+  
+    try {
+      
+      const group = await db.collection('groups').findOne({ _id: new ObjectId(groupId) });
+  
+      if (!group) {
+        return res.status(404).json({ message: '그룹을 찾을 수 없습니다.' });
+      }
+  
+      
+      const decoded = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
+      const userId = decoded.userId;
+  
+      if (group.creator.toString() !== userId) {
+        return res.status(403).json({ message: '수정 권한이 없습니다.' });
+      }
+  
+      
+      const updateFields = {};
+  
+      if (title) updateFields.title = title;
+      if (note) updateFields.note = note;
+      if (foodCategory) updateFields.foodCategory = foodCategory;
+      if (maxPeople) updateFields.maxPeople = maxPeople;
+      if (location) updateFields.location = location;
+      if (together !== undefined) updateFields.together = together;
+      if (sameGender !== undefined) updateFields.sameGender = sameGender;
+      //   if (hashtags) updateFields.hashtags = hashtags; 
+  
+      // 그룹 정보 업데이트
+      await db.collection('groups').updateOne(
+        { _id: new ObjectId(groupId) },
+        { $set: updateFields }
+      );
+  
+      return res.status(200).json({ message: '그룹 정보가 성공적으로 업데이트되었습니다.' });
+    } catch (error) {
+      console.error('그룹 정보 수정 오류:', error);
+      res.status(500).json({ message: '서버 오류 발생' });
+    }
+  });
 
 module.exports = router 
