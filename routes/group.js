@@ -164,4 +164,50 @@ router.patch('/update', async (req, res) => {
     }
   });
 
+
+// 그룹 삭제 API
+router.delete('/delete', async (req, res) => {
+    const token = req.headers['authorization'];
+  
+    if (!token) {
+      return res.status(401).json({ message: '인증 토큰이 제공되지 않았습니다.' });
+    }
+  
+    const { groupId } = req.body; 
+  
+    if (!groupId) {
+      return res.status(400).json({ message: '그룹 ID가 제공되지 않았습니다.' });
+    }
+  
+    try {
+      
+      const decoded = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
+      const userId = decoded.userId; 
+  
+   
+      const group = await db.collection('groups').findOne({ _id: new ObjectId(groupId) });
+  
+      if (!group) {
+        return res.status(404).json({ message: '그룹을 찾을 수 없습니다.' });
+      }
+  
+    
+      if (group.creator.toString() !== userId) {
+        return res.status(403).json({ message: '삭제 권한이 없습니다.' });
+      }
+  
+     
+      const result = await db.collection('groups').deleteOne({ _id: new ObjectId(groupId) });
+  
+      if (result.deletedCount === 1) {
+        return res.status(200).json({ message: '그룹이 성공적으로 삭제되었습니다.' });
+      } else {
+        return res.status(400).json({ message: '그룹 삭제 중 오류가 발생했습니다.' });
+      }
+  
+    } catch (error) {
+      console.error('그룹 삭제 오류:', error);
+      res.status(500).json({ message: '서버 오류 발생' });
+    }
+  });
 module.exports = router 
