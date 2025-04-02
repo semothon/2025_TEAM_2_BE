@@ -211,4 +211,88 @@ router.delete('/delete', async (req, res) => {
       res.status(500).json({ message: '서버 오류 발생' });
     }
   });
+
+
+// 그룹 참가 API
+router.post('/join', async (req, res) => {
+    const token = req.headers['authorization'];  
+    const { groupId } = req.body;  
+
+    if (!token || !groupId) {
+      return res.status(400).json({ message: '인증 토큰과 그룹 ID가 제공되지 않았습니다.' });
+    }
+
+    try {
+      
+      const decoded = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
+      const userId = decoded.userId;
+
+      
+      const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+
+      if (!user) {
+        return res.status(404).json({ message: '해당 사용자 정보를 찾을 수 없습니다.' });
+      }
+
+      
+      const group = await db.collection('groups').findOne({ _id: new ObjectId(groupId) });
+
+      if (!group) {
+        return res.status(404).json({ message: '그룹을 찾을 수 없습니다.' });
+      }
+
+      
+      if (group.status === false) {
+        return res.status(409).json({ message: '그룹이 가득 차서 더 이상 참여할 수 없습니다.' });
+      }
+
+      // 같은 성별 조건이 true인 경우, 생성자 성별과 참가자의 성별을 비교
+      if (group.sameGender === true) {
+        
+        const creator = await db.collection('users').findOne({ _id: new ObjectId(group.creator) });
+        if (!creator) {
+          return res.status(404).json({ message: '그룹 생성자 정보를 찾을 수 없습니다.' });
+        }
+
+        
+        if (user.gender !== creator.gender) {
+          return res.status(400).json({ message: '성별이 일치하지 않아 그룹에 참여할 수 없습니다.' });
+        }
+      }
+
+      
+      if (group.members.length >= group.maxPeople) {
+        await db.collection('groups').updateOne(
+          { _id: new ObjectId(groupId) },
+          { $set: { status: false } }  
+        );
+        return res.status(409).json({ message: '그룹이 가득 차서 더 이상 참여할 수 없습니다.' });
+      }
+
+      
+      await db.collection('groups').updateOne(
+        { _id: new ObjectId(groupId) },
+        { $push: { members: userId } }  
+      );
+
+      // 참가 후 멤버 수가 maxPeople에 도달하면 상태를 false로 변경
+      const updatedGroup = await db.collection('groups').findOne({ _id: new ObjectId(groupId) });
+      if (updatedGroup.members.length >= updatedGroup.maxPeople) {
+        await db.collection('groups').updateOne(
+          { _id: new ObjectId(groupId) },
+          { $set: { status: false } }  
+        );
+      }
+
+      
+      return res.status(200).json({
+        message: '성공적으로 그룹에 참여하였습니다.',
+        groupId: groupId,
+      });
+
+    } catch (error) {
+      console.error('그룹 참여 오류:', error);
+      res.status(500).json({ message: '서버 오류 발생' });
+    }
+});
 module.exports = router 
