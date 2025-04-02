@@ -2,7 +2,9 @@ const express = require('express')
 const axios = require('axios'); 
 const jwt = require('jsonwebtoken'); 
 const bcrypt = require('bcrypt');
+const bodyParser = require('body-parser');
 require('dotenv').config();
+
 
 const app = express()
 const port = process.env.PORT
@@ -25,6 +27,7 @@ app.get('/',(req,res)=>{
 })
 
 app.use(express.json());
+app.use(bodyParser.json());
 
 app.use('/auth',require('./routes/auth.js'))
 app.use('/user',require('./routes/user.js'))
