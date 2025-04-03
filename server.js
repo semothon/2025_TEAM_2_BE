@@ -6,6 +6,9 @@ const jwt = require('jsonwebtoken');
 const { ObjectId } = require('mongodb');
 const axios = require('axios'); 
 const bcrypt = require('bcrypt');
+const cors = require('cors');
+
+
 require('dotenv').config();
 
 
@@ -24,8 +27,11 @@ connectDB.then((client)=>{
   console.log(err)
 })
 
+app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
+
+
 app.use('/auth',require('./routes/auth.js'))
 app.use('/user',require('./routes/user.js'))
 app.use('/group',require('./routes/group.js'))

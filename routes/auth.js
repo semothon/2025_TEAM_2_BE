@@ -34,12 +34,13 @@ router.post('/univ-cert-request', async (req, res) => {
  
      if (response.data.success) {
       
-   
+      
        return res.status(200).json({ 
          message: '인증 코드가 전송되었습니다.',
          
        });
      } else {
+      console.log('인증 코드 전송 실패')
        return res.status(400).json({ message: response.data.message || '인증 요청 실패' });
      }
    } catch (error) {

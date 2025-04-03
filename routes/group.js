@@ -19,6 +19,7 @@ connectDB.then((client)=>{
 router.get('/get', async (req, res) => {
     try {
       const groups = await db.collection('groups').find({ }).toArray();
+      console.log('요청 확인');
       return res.status(200).json({
         message: '그룹 목록을 성공적으로 가져왔습니다.',
         groups: groups.map(group => ({
