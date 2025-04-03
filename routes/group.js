@@ -94,7 +94,7 @@ router.post('/create', async (req, res) => {
         io.to(result.insertedId.toString()).emit('newMember', { userId, message: `${decoded.nickname}님이 방을 생성하셨습니다.` });
         
         return res.status(201).json({
-            message: '그룹이 성공적으로 생성되었습니다. ${decoded.nickname}님이 방을 생성하셨습니다. ',
+            message: '그룹이 성공적으로 생성되었습니다.',
             groupId: result.insertedId,
         });
     } catch (error) {
@@ -284,6 +284,47 @@ router.post('/join', async (req, res) => {
       res.status(500).json({ message: '서버 오류 발생' });
     }
 });
+
+
+// 그룹 검색 API
+router.get('/search', async (req, res) => {
+    const { query } = req.query; 
+  
+    if (!query) {
+      return res.status(400).json({ message: '검색어가 제공되지 않았습니다.' });
+    }
+  
+    try {
+      // 그룹 목록에서 쿼리와 매칭되는 그룹 검색
+      const groups = await db.collection('groups').find({
+        $or: [
+          { title: { $regex: query, $options: 'i' } }, 
+          { note: { $regex: query, $options: 'i' } }, 
+          { foodCategory: { $regex: query, $options: 'i' } },
+          { location: { $regex: query, $options: 'i' } }, 
+        ]
+      }).toArray();
+  
+      if (groups.length === 0) {
+        return res.status(404).json({ message: '검색 결과가 없습니다.' });
+      }
+  
+      return res.status(200).json({
+        message: '그룹 검색 성공',
+        groups: groups.map(group => ({
+          groupId: group._id,
+          title: group.title,
+          note: group.note,
+          foodCategory: group.foodCategory,
+          location: group.location,
+          creator: group.creator,
+        })),
+      });
+    } catch (error) {
+      console.error('그룹 검색 오류:', error);
+      res.status(500).json({ message: '서버 오류 발생' });
+    }
+  });
 
 
 module.exports = router 

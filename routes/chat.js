@@ -35,7 +35,7 @@ router.get('/history/:groupId', async (req, res) => {
       });
     } catch (error) {
       console.error('채팅 내역 조회 오류:', error);
-      res.status(500).json({ message: '서버 오류 발생' });
+      res.status (500).json({ message: '서버 오류 발생' });
     }
   });
   
