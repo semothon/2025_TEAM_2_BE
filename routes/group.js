@@ -417,43 +417,81 @@ router.post('/join', async (req, res) => {
 
 // 그룹 검색 API
 router.get('/search', async (req, res) => {
-    const { query } = req.query; 
-  
-    if (!query) {
-      return res.status(400).json({ message: '검색어가 제공되지 않았습니다.' });
+    const { query } = req.query;
+    console.log("Received query:", query); 
+    // 검색어가 두 글자 이상인 경우만 처리
+    if (!query || query.length < 2) {
+        return res.status(400).json({ message: '검색어는 두 글자 이상이어야 합니다.' });
     }
-  
+
     try {
-      // 그룹 목록에서 쿼리와 매칭되는 그룹 검색
-      const groups = await db.collection('groups').find({
-        $or: [
-          { title: { $regex: query, $options: 'i' } }, 
-          { note: { $regex: query, $options: 'i' } }, 
-          { foodCategory: { $regex: query, $options: 'i' } },
-          { location: { $regex: query, $options: 'i' } }, 
-        ]
-      }).toArray();
-  
-      if (groups.length === 0) {
-        return res.status(404).json({ message: '검색 결과가 없습니다.' });
-      }
-  
-      return res.status(200).json({
-        message: '그룹 검색 성공',
-        groups: groups.map(group => ({
-          groupId: group._id,
-          title: group.title,
-          note: group.note,
-          foodCategory: group.foodCategory,
-          location: group.location,
-          creator: group.creator,
-        })),
-      });
+        // 토큰에서 userId 추출
+        const token = req.headers['authorization'];
+        if (!token) {
+            return res.status(401).json({ message: '인증 토큰이 제공되지 않았습니다.' });
+        }
+        
+        const decoded = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
+        const userId = decoded.userId;
+
+        const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+        if (!user) {
+            return res.status(404).json({ message: '사용자 정보를 찾을 수 없습니다.' });
+        }
+
+        // 차단된 유저들의 리스트
+        const blockedUserIds = user.block_list || [];
+
+        // 그룹 검색
+        const groups = await db.collection('groups').find({
+            $or: [
+                { title: { $regex: query, $options: 'i' } },
+                { note: { $regex: query, $options: 'i' } },
+                { foodCategory: { $regex: query, $options: 'i' } },
+                { location: { $regex: query, $options: 'i' } },
+            ]
+        }).toArray();
+
+        if (groups.length === 0) {
+            return res.status(404).json({ message: '검색 결과가 없습니다.' });
+        }
+
+        // 차단된 유저가 포함되지 않고, status가 0인 그룹만 필터링
+        const filteredGroups = groups.filter(group => {
+            const members = group.members || [];
+            const isNotBlocked = members.every(memberId => !blockedUserIds.includes(memberId.toString()));
+            
+            return isNotBlocked && group.status === 0; // status가 0인 그룹만
+        });
+
+        // 아이콘 정보를 포함한 그룹 데이터 반환
+        const groupsWithIcons = await Promise.all(filteredGroups.map(async (group) => {
+            const members = group.members || [];
+            const icons = await Promise.all(members.map(async (memberId) => {
+                const member = await db.collection('users').findOne({ _id: new ObjectId(memberId) });
+                return member ? member.icon : null;  
+            }));
+
+            return {
+                groupId: group._id,
+                title: group.title,
+                note: group.note,
+                hashtags: group.hashtags,
+                status: group.status,
+                icons: icons.filter(icon => icon !== null), // null 제외
+            };
+        }));
+
+        return res.status(200).json({
+            message: '그룹 검색 성공',
+            groups: groupsWithIcons,
+        });
+
     } catch (error) {
-      console.error('그룹 검색 오류:', error);
-      res.status(500).json({ message: '서버 오류 발생' });
+        console.error('그룹 검색 오류:', error);
+        res.status(500).json({ message: '서버 오류 발생' });
     }
-  });
+});
 
 
 module.exports = router 
