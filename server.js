@@ -20,6 +20,7 @@ let connectDB = require('./database.js')
 let db
 connectDB.then((client)=>{
   db = client.db('triangle')
+
   console.log('server DB연결성공')
 
 }).catch((err)=>{
