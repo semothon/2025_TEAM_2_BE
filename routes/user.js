@@ -79,7 +79,7 @@ router.delete('/delete', async (req, res) => {
   
       const email = user.email;
   
-      // 외부 인증 API에 이메일 삭제 요청
+      
       const response = await axios.post('https://univcert.com/api/v1/clear', {
         key: process.env.UNIAPI_KEY, 
         email: email,
@@ -89,7 +89,7 @@ router.delete('/delete', async (req, res) => {
         return res.status(400).json({ message: '외부 인증 API에서 이메일 삭제 실패' });
       }
   
-      // 해당 사용자 삭제 (DB)
+      
       const result = await db.collection('users').deleteOne({ _id: new ObjectId(userId) });
   
       // 삭제 여부 확인
