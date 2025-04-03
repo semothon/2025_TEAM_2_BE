@@ -16,35 +16,162 @@ connectDB.then((client)=>{
 }) 
 
 // DB에 존재하는 그룹 목록 GET
-router.get('/get', async (req, res) => {
-    try {
-      const groups = await db.collection('groups').find({ }).toArray();
-      console.log('요청 확인');
-      return res.status(200).json({
-        message: '그룹 목록을 성공적으로 가져왔습니다.',
-        groups: groups.map(group => ({
-          groupId: group._id,
-          title: group.title,
-          note: group.note,
-          foodCategory: group.foodCategory,
-          maxPeople: group.maxPeople,
-          together: group.together,
-          sameGender: group.sameGender,
-          hashtags: group.hashtags,
-          location: group.location,
-          members: group.members,
-          status: group.status,
-          creator: group.creator
-          
-    
-        })),
-      });
-    } catch (error) {
-      console.error('그룹 목록 조회 오류:', error);
-      res.status(500).json({ message: '서버 오류 발생' });
-    }
-  });
+router.get('/get/home', async (req, res) => {
+    const token = req.headers['authorization'];
 
+    if (!token) {
+        return res.status(401).json({ message: '인증 토큰이 제공되지 않았습니다.' });
+    }
+
+    try {
+        const decoded = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
+        const userId = decoded.userId;
+
+        const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+
+        if (!user) {
+            return res.status(404).json({ message: '사용자 정보를 찾을 수 없습니다.' });
+        }
+
+        const blockedUserIds = user.block_list || [];
+        
+        const groups = await db.collection('groups').find({ }).toArray();
+
+        const filteredGroups = groups.filter(group => {
+            const members = group.members || []; 
+            const isNotBlocked = members.every(memberId => !blockedUserIds.includes(memberId.toString()));
+            
+            return isNotBlocked && group.status === 0;
+        });
+
+        
+        const groupsWithIcons = await Promise.all(filteredGroups.map(async (group) => {
+            const members = group.members || [];
+            const icons = await Promise.all(members.map(async (memberId) => {
+                const member = await db.collection('users').findOne({ _id: new ObjectId(memberId) });
+                return member ? member.icon : null;  
+            }));
+
+            return {
+                groupId: group._id,
+                title: group.title,
+                note: group.note,
+                hashtags: group.hashtags,
+                status: group.status,
+                icons: icons.filter(icon => icon !== null),
+            };
+        }));
+
+        return res.status(200).json({
+            message: '그룹 목록을 성공적으로 가져왔습니다.',
+            groups: groupsWithIcons,
+        });
+    } catch (error) {
+        console.error('그룹 목록 조회 오류:', error);
+        res.status(500).json({ message: '서버 오류 발생' });
+    }
+});
+
+router.get('/get/detail', async (req, res) => {
+    const { groupId } = req.body; 
+
+    if (!groupId) {
+        return res.status(400).json({ message: '그룹 ID가 제공되지 않았습니다.' });
+    }
+
+    try {
+        
+        const group = await db.collection('groups').findOne({ _id: new ObjectId(groupId) });
+
+        if (!group) {
+            return res.status(404).json({ message: '그룹을 찾을 수 없습니다.' });
+        }
+
+        
+        const userIds = group.members || [];
+        const users = await db.collection('users').find({
+            _id: { $in: userIds.map(id => new ObjectId(id)) }
+        }).toArray();
+        
+        const userInfo = users.map(user => ({
+            userId: user._id,
+            nickname: user.nickname,
+            icon: user.icon,
+            major: user.school ? user.school[2] : "정보 없음", // school[2] = major
+            studentId: user.school ? user.school[1] : "정보 없음", // school[1] = 학번
+            likeCount: user.likedBy_list ? user.likedBy_list.length : 0
+        }));
+
+        return res.status(200).json({
+            message: '그룹 상세 정보를 성공적으로 가져왔습니다.',
+            group: {
+                // groupId: group._id,
+                // maxPeople: group.maxPeople,
+                // together: group.together,
+                // sameGender: group.sameGender,
+                // creator: group.creator,
+                location: group.location,
+                membersInfo: userInfo, // 유저 정보 포함
+            }
+        });
+    } catch (error) {
+        console.error('그룹 정보 조회 오류:', error);
+        res.status(500).json({ message: '서버 오류 발생' });
+    }
+});
+
+router.get('/get/deals', async (req, res) => {
+    const token = req.headers['authorization'];
+
+    if (!token) {
+        return res.status(401).json({ message: '인증 토큰이 제공되지 않았습니다.' });
+    }
+
+    try {
+        const decoded = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
+        const userId = decoded.userId;
+
+        const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+
+        if (!user) {
+            return res.status(404).json({ message: '사용자 정보를 찾을 수 없습니다.' });
+        }
+
+        
+        const groups = await db.collection('groups').find({ }).toArray();
+
+        
+        const filteredGroups = groups.filter(group => {
+            const members = group.members || [];
+            return members.includes(userId.toString());
+        });
+
+        // 각 그룹에 members의 icon만
+        const groupsWithIcons = await Promise.all(filteredGroups.map(async (group) => {
+            const members = group.members || [];
+            const membersWithIcons = await Promise.all(members.map(async (memberId) => {
+                const member = await db.collection('users').findOne({ _id: new ObjectId(memberId) });
+                return member ? member.icon : 0; 
+            }));
+
+            return {
+                groupId: group._id,
+                title: group.title,
+                note: group.note,
+                status: group.status,
+                icons: membersWithIcons.filter(icon => icon !== null) 
+            };
+        }));
+
+        return res.status(200).json({
+            message: '그룹 목록을 성공적으로 가져왔습니다.',
+            groups: groupsWithIcons,
+        });
+    } catch (error) {
+        console.error('그룹 목록 조회 오류:', error);
+        res.status(500).json({ message: '서버 오류 발생' });
+    }
+});
 // 그룹 개설 API
 router.post('/create', async (req, res) => {
     const token = req.headers['authorization'];
@@ -73,7 +200,7 @@ router.post('/create', async (req, res) => {
         const members = [userId]; 
         // 방 상태는 초기에 모집가능 인덱스인 0으로 설정
         const status = 0;
-        
+        const isCreator = false;
         
         const newGroup = {
             title,
@@ -86,6 +213,7 @@ router.post('/create', async (req, res) => {
             members,  
             location,
             status, // 방 현재 상태 => 방장이 1로 설정하면 더이상 멤버 모집 안함, 2는 거래 완료 용도로 사용
+            isCreator,
             creator: new ObjectId(userId), // 그룹 생성자의 userId 저장
             createdAt: new Date(),
         };

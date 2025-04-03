@@ -49,6 +49,7 @@ router.get('/get', async (req, res) => {
         //아래부터는 수정사항때 필요할 정보들
         username: user.username,
         gender : user.gender,
+        userId:userId
       },
     });
   } catch (error) {
@@ -221,6 +222,7 @@ router.post('/block', async (req, res) => {
   try {
     const decoded = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
     const userId = decoded.userId;
+
     const { targetUserId } = req.body; // 요청 body에서 받도록 변경
 
     if (!targetUserId) {
