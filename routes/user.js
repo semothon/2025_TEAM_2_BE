@@ -149,7 +149,7 @@ router.patch('/update', async (req, res) => {
 });
 
 //좋아요 api
-router.post('/like/:targetUserId', async (req, res) => {
+router.post('/like', async (req, res) => {
   const token = req.headers['authorization'];
   if (!token) {
     return res.status(401).json({ message: '인증 토큰이 없습니다.' });
@@ -157,8 +157,12 @@ router.post('/like/:targetUserId', async (req, res) => {
 
   try {
     const decoded = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
-    const userId = decoded.userId;
-    const targetUserId = req.params.targetUserId;
+    const userId = decoded.userId.toString();
+    const { targetUserId } = req.body; // 요청 body에서 문자열로 받음
+
+    if (!targetUserId) {
+      return res.status(400).json({ message: '대상 사용자 ID가 없습니다.' });
+    }
 
     if (userId === targetUserId) {
       return res.status(400).json({ message: '자기 자신을 좋아요할 수 없습니다.' });
@@ -173,7 +177,7 @@ router.post('/like/:targetUserId', async (req, res) => {
       return res.status(404).json({ message: '대상 사용자를 찾을 수 없습니다.' });
     }
 
-    const alreadyLiked = targetUser.liked_by?.includes(userId);
+    const alreadyLiked = (targetUser.liked_by || []).includes(userId);
 
     if (alreadyLiked) {
       // 좋아요 취소
@@ -197,13 +201,16 @@ router.post('/like/:targetUserId', async (req, res) => {
       return res.status(200).json({ message: '좋아요를 추가했습니다.' });
     }
   } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: '토큰이 만료되었습니다. 다시 로그인 해주세요.' });
+    }
     console.error('좋아요 처리 오류:', error);
     res.status(500).json({ message: '서버 오류 발생' });
   }
 });
 
 // 사용자 차단 / 차단 해제 API
-router.post('/block/:targetUserId', async (req, res) => {
+router.post('/block', async (req, res) => {
   const token = req.headers['authorization'];
   if (!token) {
     return res.status(401).json({ message: '인증 토큰이 없습니다.' });
@@ -212,7 +219,11 @@ router.post('/block/:targetUserId', async (req, res) => {
   try {
     const decoded = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
     const userId = decoded.userId;
-    const targetUserId = req.params.targetUserId;
+    const { targetUserId } = req.body; // 요청 body에서 받도록 변경
+
+    if (!targetUserId) {
+      return res.status(400).json({ message: '대상 사용자 ID가 없습니다.' });
+    }
 
     if (userId === targetUserId) {
       return res.status(400).json({ message: '자기 자신은 차단할 수 없습니다.' });
@@ -250,4 +261,4 @@ router.post('/block/:targetUserId', async (req, res) => {
   }
 });
 
-module.exports = router 
+module.exports = router
