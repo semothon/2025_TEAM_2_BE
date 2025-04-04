@@ -399,7 +399,6 @@ router.post('/join', async (req, res) => {
 // 그룹 검색 API
 router.get('/search', async (req, res) => {
     const { query } = req.query;
-    console.log("Received query:", query); 
     // 검색어가 두 글자 이상인 경우만 처리
     if (!query || query.length < 2) {
         return res.status(400).json({ message: '검색어는 두 글자 이상이어야 합니다.' });
