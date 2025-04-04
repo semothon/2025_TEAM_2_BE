@@ -16,8 +16,7 @@ connectDB.then((client)=>{
 }) 
 
 //회원 정보 조회 API
-router.get('/get', async (req, res) => {
-
+router.get('/profile', async (req, res) => {
 
   const token = req.headers['authorization'];
 
@@ -30,7 +29,6 @@ router.get('/get', async (req, res) => {
     const decoded = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
     const userId = decoded.userId; 
 
-    
     const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
   
     if (!user) {
@@ -40,16 +38,49 @@ router.get('/get', async (req, res) => {
     return res.status(200).json({
       message: '사용자 정보 조회 성공',
       user: {
+        icon: user.icon,
         nickname: user.nickname,
-        email: user.email,
+        username: user.username,
         school: user.school,
         nickname: user.nickname,
-        icon: user.icon,
-        like_count : user.like_count,
-        //아래부터는 수정사항때 필요할 정보들
-        username: user.username,
         gender : user.gender,
-        userId:userId
+        likeCount: user.likedBy_list ? user.likedBy_list.length : 0
+      },
+    });
+  } catch (error) {
+    console.error('사용자 조회 오류:', error);
+    res.status(500).json({ message: '서버 오류 발생' });
+  }
+});
+
+//query 로 profile 정보를 받아올 유저 id 전달
+router.get('/profile/detail', async (req, res) => {
+
+  const { userId } = req.query; 
+
+  if (!userId) {
+    return res.status(400).json({ message: '그룹 ID가 제공되지 않았습니다.' });
+}
+
+  try {
+
+    const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+  
+    if (!user) {
+      return res.status(404).json({ message: '존재하지 않는 회원입니다.' });
+    }
+
+    return res.status(200).json({
+      message: '사용자 정보 조회 성공',
+      user: {
+        icon: user.icon,
+        nickname: user.nickname,
+        username: user.username,
+        school: user.school,
+        nickname: user.nickname,
+        gender : user.gender,
+        likeCount: user.likedBy_list ? user.likedBy_list.length : 0
+        
       },
     });
   } catch (error) {
@@ -182,7 +213,7 @@ router.post('/like', async (req, res) => {
 
     const alreadyLiked = (targetUser.likedBy_list || []).includes(userId);
 
-    if (alreadyLiked) {
+   if (alreadyLiked) {
       // 좋아요 취소
       await db.collection('users').updateOne(
         { _id: new ObjectId(targetUserId) },

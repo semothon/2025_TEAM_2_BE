@@ -28,7 +28,6 @@ router.get('/get/home', async (req, res) => {
         const userId = decoded.userId;
 
         const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
-        console.log("토큰있음");
         if (!user) {
             return res.status(404).json({ message: '사용자 정보를 찾을 수 없습니다.' });
         }
@@ -78,7 +77,9 @@ router.get('/get/home', async (req, res) => {
 });
 
 router.get('/get/detail', async (req, res) => {
-    const { groupId } = req.body; 
+    
+  const { groupId } = req.query; 
+
     if (!groupId) {
         return res.status(400).json({ message: '그룹 ID가 제공되지 않았습니다.' });
     }
