@@ -79,7 +79,6 @@ router.get('/get/home', async (req, res) => {
 
 router.get('/get/detail', async (req, res) => {
     const { groupId } = req.body; 
-    console.log("ㅇㅇ");
     if (!groupId) {
         return res.status(400).json({ message: '그룹 ID가 제공되지 않았습니다.' });
     }
