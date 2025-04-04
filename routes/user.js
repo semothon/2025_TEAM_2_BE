@@ -179,15 +179,21 @@ router.post('/like', async (req, res) => {
       return res.status(404).json({ message: '대상 사용자를 찾을 수 없습니다.' });
     }
 
-    const alreadyLiked = (targetUser.liked_by || []).includes(userId);
+    const alreadyLiked = (targetUser.likedBy_list || []).includes(userId);
 
     if (alreadyLiked) {
       // 좋아요 취소
       await db.collection('users').updateOne(
         { _id: new ObjectId(targetUserId) },
         {
-          $pull: { liked_by: userId },
+          $pull: { likedBy_list: userId },
           $inc: { like_count: -1 },
+        }
+      );
+      await db.collection('users').updateOne(
+        { _id: new ObjectId(userId) },
+        {
+          $pull: { mylike_list: targetUserId },
         }
       );
       return res.status(200).json({ message: '좋아요를 취소했습니다.' });
@@ -196,8 +202,14 @@ router.post('/like', async (req, res) => {
       await db.collection('users').updateOne(
         { _id: new ObjectId(targetUserId) },
         {
-          $addToSet: { liked_by: userId },
+          $addToSet: { likedBy_list: userId },
           $inc: { like_count: 1 },
+        }
+      );
+      await db.collection('users').updateOne(
+        { _id: new ObjectId(userId) },
+        {
+          $addToSet: { mylike_list: targetUserId },
         }
       );
       return res.status(200).json({ message: '좋아요를 추가했습니다.' });
