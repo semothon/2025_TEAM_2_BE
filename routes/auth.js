@@ -201,7 +201,7 @@ router.post('/login', async (req, res) => {
 
     // JWT 토큰 발급
     const token = jwt.sign({ userId: user._id, email: user.email }, process.env.JWT_SECRET, {
-      expiresIn: '1d',
+      expiresIn: '5d',
     });
 
     
