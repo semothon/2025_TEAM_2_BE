@@ -33,8 +33,10 @@ router.get('/get', async (req, res) => {
     
     const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
   
+    if (!user) {
+      return res.status(404).json({ message: '존재하지 않는 회원입니다.' });
+    }
 
-    
     return res.status(200).json({
       message: '사용자 정보 조회 성공',
       user: {
@@ -129,7 +131,7 @@ router.patch('/update', async (req, res) => {
     
     if (nickname) updateFields.nickname = nickname;
     if (username) updateFields.username = username;
-    if (icon) updateFields.icon = icon;
+    if (icon !== undefined) updateFields.icon = icon;
     if (studentId) updateFields["school.1"] = studentId; 
     if (major) updateFields["school.2"] = major;
 
