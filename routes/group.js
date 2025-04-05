@@ -435,8 +435,8 @@ router.get('/search', async (req, res) => {
         }).toArray();
 
         if (groups.length === 0) {
-            return res.status(404).json({ message: '검색 결과가 없습니다.' });
-        }
+          return res.status(200).json({ message: '그룹 검색 성공', groups: [] });  // 빈 리스트 반환
+      }
 
         // 차단된 유저가 포함되지 않고, status가 0인 그룹만 필터링
         const filteredGroups = groups.filter(group => {
