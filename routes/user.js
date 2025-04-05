@@ -312,5 +312,38 @@ router.post('/block', async (req, res) => {
     res.status(500).json({ message: '서버 오류 발생' });
   }
 });
+// 차단 목록 GET API - 유저 정보 포함
+router.get('/block', async (req, res) => {
+  const token = req.headers['authorization'];
+  if (!token) {
+    return res.status(401).json({ message: '인증 토큰이 없습니다.' });
+  }
 
+  try {
+    const decoded = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
+    const userId = decoded.userId;
+
+    const user = await db.collection('users').findOne(
+      { _id: new ObjectId(userId) },
+      { projection: { block_list: 1 } }
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: '유저를 찾을 수 없습니다.' });
+    }
+
+    const blockListIds = (user.block_list ?? []).map(id => new ObjectId(id));
+
+    // block_list에 있는 유저들의 정보 가져오기
+    const blockedUsers = await db.collection('users')
+      .find({ _id: { $in: blockListIds } })
+      .project({ school:1,username: 1, nickname:1, icon:1 }) // 필요한 필드만 선택
+      .toArray();
+
+    res.status(200).json({ block_list: blockedUsers });
+  } catch (err) {
+    console.error('block 리스트 가져오기 오류:', err);
+    res.status(500).json({ message: '서버 오류 발생' });
+  }
+});
 module.exports = router
