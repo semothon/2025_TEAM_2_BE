@@ -97,6 +97,7 @@ router.post('/univ-cert-verify', async (req, res) => {
         return res.status(400).json({ message: '이미 존재하는 사용자입니다.' });
       }
     } else {
+      console.log("인증번호틀림")
       return res.status(400).json({ message: '인증 코드가 잘못되었습니다.' });
     }
   } catch (error) {

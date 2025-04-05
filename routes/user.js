@@ -136,6 +136,36 @@ router.delete('/delete', async (req, res) => {
       res.status(500).json({ message: '서버 오류 발생' });
     }
   });
+
+  router.delete('/delete/email', async (req, res) => {
+    
+    const { email} = req.body;
+
+    try {
+      
+  
+      
+  
+      
+      const response = await axios.post('https://univcert.com/api/v1/clear', {
+        key: process.env.UNIAPI_KEY, 
+        email: email,
+      });
+  
+      if (!response.data.success) {
+        return res.status(400).json({ message: '외부 인증 API에서 이메일 삭제 실패' });
+      } else {
+        return res.status(200).json({ message: '사용자가 성공적으로 삭제되었습니다.' });
+      }
+  
+      
+      
+
+    } catch (error) {
+      console.error('계정 삭제 오류:', error);
+      res.status(500).json({ message: '서버 오류 발생' });
+    }
+  });
   
 //회원 정보 업데이트 API
 router.patch('/update', async (req, res) => {

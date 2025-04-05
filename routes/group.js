@@ -62,7 +62,9 @@ router.get('/get/home', async (req, res) => {
                 status: group.status,
                 icons: icons.filter(icon => icon !== null),
                 maxPeople: group.maxPeople,
-                creatorGender: creatorGender
+                creatorGender: creatorGender,
+                cost: group.cost,
+                hopeCost: group.hopeCost
             };
         }));
 
@@ -162,7 +164,10 @@ router.get('/get/deals', async (req, res) => {
               status: group.status,
               hashtags: group.hashtags,
               icons: membersWithIcons.filter(icon => icon !== null),
-              creator : group.creator
+              creator : group.creator,
+              nowCost: group.myCost,
+              hopeCost: group.hopeCost
+
           };
         }));
 
@@ -189,10 +194,10 @@ router.post('/create', async (req, res) => {
         const userId = decoded.userId; 
   
         //음식 카테고리, 같따 먹을지, 동성만
-        const { title, note, maxPeople, hashtags, location } = req.body;
+        const { title, note, maxPeople, hashtags, location, cost, hopeCost } = req.body;
   
         
-        if (!title || !maxPeople || !hashtags || !location) {
+        if (!title || !maxPeople || !hashtags || !location || !cost || !hopeCost) {
             return res.status(400).json({ message: '모든 필드를 입력해 주세요.' });
         }
 
@@ -212,6 +217,8 @@ router.post('/create', async (req, res) => {
             members,  
             location,
             status, // 방 현재 상태 => 방장이 1로 설정하면 더이상 멤버 모집 안함, 2는 거래 완료 용도로 사용
+            cost,
+            hopeCost,
             creator: new ObjectId(userId), 
             createdAt: new Date(),
         };
@@ -343,10 +350,18 @@ router.delete('/delete', async (req, res) => {
 // status: 2: 모임 종료된 그룹.
 router.post('/join', async (req, res) => {
     const token = req.headers['authorization'];  
-    const { groupId } = req.body;  
+    const { groupId, myCost } = req.body;  
 
-    if (!token || !groupId) {
-      return res.status(400).json({ message: '인증 토큰과 그룹 ID가 제공되지 않았습니다.' });
+    if (!token) {
+      return res.status(400).json({ message: '인증 토큰이 제공되지 않았습니다.' });
+    }
+
+    if (!groupId) {
+      return res.status(400).json({ message: '그룹 ID가 제공되지 않았습니다.' });
+    }
+
+    if (!myCost) {
+      return res.status(400).json({ message: '나의 예상 금액이 제공되지 않았습니다.' });
     }
 
     try {
@@ -375,11 +390,17 @@ router.post('/join', async (req, res) => {
      
       await db.collection('groups').updateOne(
         { _id: new ObjectId(groupId) },
-        { $push: { members: userId } } 
+        {
+          $push: { members: userId },  
+          $inc: { cost: myCost }        
+        }
       );
+
 
       // 소켓을 사용해 해당 그룹의 방에 유저 추가
       io.to(groupId).emit('newMember', { userId, message: `${user.username}님이 그룹에 참여했습니다.` });
+
+
 
       // 참가 후 멤버 수가 maxPeople에 도달하면 상태를 1로 변경
       const updatedGroup = await db.collection('groups').findOne({ _id: new ObjectId(groupId) });
