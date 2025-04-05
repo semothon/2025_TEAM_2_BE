@@ -193,7 +193,7 @@ router.post('/like', async (req, res) => {
   try {
     const decoded = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
     const userId = decoded.userId.toString();
-    const { targetUserId } = req.body; // 요청 body에서 문자열로 받음
+    const { targetUserId } = req.body; 
 
     if (!targetUserId) {
       return res.status(400).json({ message: '대상 사용자 ID가 없습니다.' });

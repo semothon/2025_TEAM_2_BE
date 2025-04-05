@@ -77,16 +77,16 @@ router.get('/get/home', async (req, res) => {
 });
 
 router.get('/get/detail', async (req, res) => {
-  console.log("ㅇㅇ 요청옴1")
+  
   const { groupId } = req.query; 
-  console.log("ㅇㅇ 요청옴2")
+  
     if (!groupId) {
 
         return res.status(400).json({ message: '그룹 ID가 제공되지 않았습니다.' });
     }
 
     try {
-      console.log("ㅇㅇ 요청옴3")
+      
         const group = await db.collection('groups').findOne({ _id: new ObjectId(groupId) });
 
         if (!group) {
