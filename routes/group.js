@@ -159,6 +159,7 @@ router.get('/get/deals', async (req, res) => {
                 title: group.title,
                 note: group.note,
                 status: group.status,
+                hashtags: group.hashtags,
                 icons: membersWithIcons.filter(icon => icon !== null) 
             };
         }));

@@ -73,6 +73,7 @@ router.get('/profile/detail', async (req, res) => {
     return res.status(200).json({
       message: '사용자 정보 조회 성공',
       user: {
+        userId: user._id,
         icon: user.icon,
         nickname: user.nickname,
         username: user.username,
