@@ -156,13 +156,14 @@ router.get('/get/deals', async (req, res) => {
             }));
 
             return {
-                groupId: group._id,
-                title: group.title,
-                note: group.note,
-                status: group.status,
-                hashtags: group.hashtags,
-                icons: membersWithIcons.filter(icon => icon !== null) 
-            };
+              groupId: group._id,
+              title: group.title,
+              note: group.note,
+              status: group.status,
+              hashtags: group.hashtags,
+              icons: membersWithIcons.filter(icon => icon !== null),
+              creator : group.creator
+          };
         }));
 
         return res.status(200).json({
